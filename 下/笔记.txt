@@ -1,0 +1,173 @@
+商品订单数据数仓开发
+
+表名				说明				导入方式
+ods_user			用户信息表			全量
+ods_user_extend		用户扩展表			全量
+ods_user_addr		用户收货地址表		全量
+ods_goods_info		商品信息表			全量
+ods_category_code	商品类目码表		全量
+ods_user_order		订单表				增量
+ods_order_item		订单商品表			增量
+ods_order_delivery	订单收货表			增量
+ods_payment_flow	支付流水表			增量
+
+
+需求一：用户信息宽表
+
+用户信息宽表包括服务端中的user表，user_extend表
+
+
+实现思路：
+对dwd_user表和dwd_user_extend表执行left join操作，通过user_id进行关联即可，将结果数据保存到dws_user_info_all表中
+
+
+针对dws层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dws_mall_init_table_1.sh
+
+2：添加分区数据脚本(每天执行一次)
+dws_mall_add_partition_1.sh
+
+
+
+问题：如果将服务端的数据和客户端的数据通过用户维护关联起来
+
+之前统计的客户端数据(用户行为数据)针对用户相关的指标都是使用的xaid
+但是在服务端数据中用户信息只有user_id
+
+这两份数据如果想要关联起来，还需要在用户行为数仓中提取一个表，表里面只需要有两列：user_id和xaid。这样的话就可以把客户端数据和服务端数据中的用户关联起来了
+
+
+
+需求二：电商GMV
+GMV：指一定时间段内的成交总金额
+GMV多用于电商行业，实际指的是拍下的订单总金额，包含付款和未付款的部分。
+
+我们在统计的时候就可以将订单表中的每天的所有订单金额全部累加起来就可以获取到当天的GMV了
+
+实现思路：
+对dwd_user_order表中的数据进行统计即可，通过order_money字段可以计算出来GMV
+将结果数据保存到表app_gmv中
+
+
+针对gmv字段的类型可以使用double或者decimal(10,2)都可以
+decimal(10,2)可以更方便的控制小数位数，数据看起来更加清晰
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_2.sh
+
+2：添加分区数据脚本(每天执行一次)
+app_mall_add_partition_2.sh
+
+
+
+需求三：商品相关指标
+1：商品的销售情况(商品名称、一级类目、订单总量、销售额)
+订单中的详细信息是在dwd_order_item表中，需要关联dwd_goods_info和dwd_category_cpde获取商品名称和商品一级类目信息
+
+在这最好是基于这些表先构建一个商品订单信息的宽表dws_order_goods_all_info
+便于后期其它需求复用
+然后基于这个宽表统计出来这个指标需要的信息，保存到表app_goods_sales_item
+
+2：商品品类偏好Top10(商品一级类目、订单总量)
+这个指标可以在第一个指标的基础之上，根据一级类目进行分组，按照类目下的订单总量排序，取Top10，保存到表app_category_top10
+
+针对dws层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dws_mall_init_table_3.sh
+
+2：添加分区数据脚本(每天执行一次)
+dws_mall_add_partition_3.sh
+
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_3.sh
+
+2：添加分区数据脚本(每天执行一次)
+app_mall_add_partition_3.sh
+
+
+
+需求四：漏斗分析
+其实就是根据用户的行为一层一层分析用户的转化率
+
+活跃-->商品详情页-->下单-->支付
+
+每一个指标对应的表：
+活跃：dws_user_active_history
+商品详情页：dwd_good_item
+下单：dwd_user_order
+支付：dwd_user_order
+
+
+实现思路：
+首先统计当天活跃用户量
+接着统计当天进入了多少个商品的详情页
+接着统计当天下单的数量
+最后统计当天支付的数量
+
+并且计算每一层的转化率
+
+最终把结果数据保存到表app_user_conver_funnel中
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_4.sh
+
+2：添加分区数据脚本(每天执行一次)
+app_mall_add_partition_4.sh
+
+
+
+
+拉链表：
+alter table ods_mall.ods_user_order add if not exists partition(dt='20260301') location '20260301';
+
+alter table ods_mall.ods_user_order add if not exists partition(dt='20260302') location '20260302';
+
+alter table ods_mall.ods_user_order add if not exists partition(dt='20260303') location '20260303';
+
+
+
+
+
+
+jobA
+jobB
+
+success
+
+000000_0
+
+
+
+Azkaban：是一个轻量级的调度器，使用起来比较简单，容易上手
+
+Ooize：是一个重量级的调度器，使用起来相对比较复杂
+
+
+
+以电商GMV指标为例：
+MySQL-->HDFS-->ODS-->DWD-->APP
+
+MySQL-->HDFS 需要使用sqoop脚本
+HDFS-->ODS 需要使用hive alter命令
+ODS-->DWD 需要使用hive 的sql
+DWD-->APP 需要使用hive 的sql
+
+
+1: 创建collect.job文件
+
+2：创建ods.job文件
+
+3：创建dwd.job文件
+
+4：创建app.job文件
+
+
+

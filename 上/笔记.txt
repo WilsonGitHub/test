@@ -1,0 +1,512 @@
+binlog
+
+
+埋点上报数据基本格式：
+{
+"uid"：1001,  //用户ID
+"xaid"："ab25617-c38910-m2991",  //手机设备ID
+"platform"：2,  //设备类型, 1:Android-APP, 2:IOS-APP, 3:PC 
+"ver"："3.5.10",  //大版本号
+"vercode"："35100083",  //子版本号
+"net"：1,  //网络类型, 0:未知, 1:WIFI, 2:2G , 3:3G, 4:4G, 5:5G
+"brand"："iPhone",  //手机品牌
+"model"："iPhone8",  //机型
+"display"："1334x750",  //分辨率
+"osver"："ios13.5",  //操作系统版本号
+"data"：[ //用户行为数据
+	{"act"：1,"acttime"：1592486549819,"ad_status"：1,"loading_time":100},
+	{"act"：2,"acttime"：1592486549819,"goods_id"："2881992"}
+	]
+}
+
+
+
+act=1：打开APP
+属性	含义
+act	用户行为类型
+acttime	数据产生时间(时间戳)
+ad_status	开屏广告展示状态, 1:成功 2:失败
+loading_time	开屏广告加载耗时(单位毫秒)
+
+
+act=2：点击商品
+属性	含义
+act	用户行为类型
+acttime	数据产生时间(时间戳)
+goods_id	商品ID
+location	商品展示顺序：在列表页中排第几位，从0开始
+
+
+act=3：商品详情页
+属性	含义
+act	用户行为类型
+acttime	数据产生时间(时间戳)
+goods_id	商品ID
+stay_time	页面停留时长(单位毫秒)
+loading_time	页面加载耗时(单位毫秒)
+
+
+act=4：商品列表页
+属性	含义
+act	用户行为类型
+acttime	数据产生时间(时间戳)
+loading_time	页面加载耗时(单位毫秒)
+loading_type	加载类型：1:读缓存 2:请求接口
+goods_num	列表页加载商品数量
+
+
+act=5：app崩溃数据
+属性	含义
+act	用户行为类型
+acttime	数据产生时间(时间戳)
+
+
+
+
+sqoop数据导入可以分为：全表导入+查询导入
+
+1：全表导入
+sqoop import \
+--connect jdbc:mysql://192.168.182.1:3306/imooc?serverTimezone=UTC \
+--username root \
+--password admin \
+--table user \
+--target-dir /out1 \
+--delete-target-dir \
+--num-mappers 1 \
+--fields-terminated-by '\t'
+
+
+2: 查询导入
+sqoop import \
+--connect jdbc:mysql://192.168.182.1:3306/imooc?serverTimezone=UTC \
+--username root \
+--password admin \
+--target-dir /out2 \
+--delete-target-dir \
+--num-mappers 1 \
+--fields-terminated-by '\t' \
+--query 'select id,name from user where id >1 and $CONDITIONS'
+
+
+
+sqoop import \
+--connect jdbc:mysql://192.168.182.1:3306/imooc?serverTimezone=UTC \
+--username root \
+--password admin \
+--table user \
+--target-dir /out1 \
+--delete-target-dir \
+--num-mappers 1 \
+--fields-terminated-by '\t' \
+--null-string '\\N' \
+--null-non-string '\\N'
+
+3: 数据导出
+
+sqoop export \
+--connect jdbc:mysql://192.168.182.1:3306/imooc?serverTimezone=UTC \
+--username root \
+--password admin \
+--table user2 \
+--export-dir /out2 \
+--input-fields-terminated-by '\t'
+
+
+存在则更新，不存在则新增
+sqoop export \
+--connect jdbc:mysql://192.168.182.1:3306/imooc?serverTimezone=UTC \
+--username root \
+--password admin \
+--table user2 \
+--export-dir /out2 \
+--input-fields-terminated-by '\t' \
+--update-key id \
+--update-mode allowinsert
+
+拉链表
+13012345678
+130****5678
+
+
+
+
+
+# 全量采集SQL
+user_sql="select user_id,user_name,user_gender,user_birthday,e_mail,concat(left(mobile,3), '****' ,right(mobile,4)) as mobile,register_time,is_blacklist from user where 1=1"
+user_extend_sql="select user_id,is_pregnant_woman,is_have_children,is_have_car,phone_brand,phone_cnt,change_phone_cnt,weight,height from user_extend where 1=1"
+user_addr_sql="select addr_id,user_id,addr_name,order_flag,user_name,concat(left(mobile,3), '****' ,right(mobile,4)) as mobile from user_addr where 1=1"
+goods_info_sql="select goods_id,goods_no,goods_name,curr_price,third_category_id,goods_desc,create_time from goods_info where 1=1"
+category_code_sql="select first_category_id,first_category_name,second_category_id,second_catery_name,third_category_id,third_category_name from category_code where 1=1"
+
+
+# 增量采集SQL
+user_order_sql="select order_id,order_date,user_id,order_money,order_type,order_status,pay_id,update_time from user_order where order_date >= '2026-01-01 00:00:00' and order_date <= '2026-01-01 23:59:59'"
+order_item_sql="select order_id,goods_id,goods_amount,curr_price,create_time from order_item where create_time >= '2026-01-01 00:00:00' and create_time <= '2026-01-01 23:59:59'"
+order_delivery_sql="select order_id,addr_id,user_id,carriage_money,create_time from order_delivery where create_time >= '2026-01-01 00:00:00' and create_time <= '2026-01-01 23:59:59'"
+payment_flow_sql="select pay_id,order_id,trade_no,pay_money,pay_type,pay_time from payment_flow where pay_time >= '2026-01-01 00:00:00' and pay_time <= '2026-01-01 23:59:59'"
+
+
+
+# 用户行为数据相关表
+
+表名			解释
+ods_user_active	用户主动活跃表(act=1)
+ods_click_good	点击商品表(act=2)
+ods_good_item	商品详情页表(act=3)
+ods_good_list	商品列表页表(act=4)
+ods_app_close	APP崩溃数据表(act=5)
+
+
+
+注意：
+1：建议在创建和使用表的时候，在表名前面加上数据库的名称
+数据库名称.表名称
+
+2：考虑到SQL重跑的情， 需要在SQL语句中添加if not exists
+
+3：string、date、timestamp，建议使用string对日期格式进行统一
+
+
+
+针对ods层抽取脚本
+1：表初始化脚本(初始化执行一次)
+ods_mall_init_table.sh
+
+2：添加区分数据脚本(每天执行一次)
+add_partition.sh：这个脚本是通用的，所有添加分区的地方都可以使用
+ods_mall_add_partition.sh
+
+
+
+针对dwd层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dwd_mall_init_table.sh
+
+2：添加区分数据脚本(每天执行一次)
+dwd_mall_add_partition.sh
+
+
+
+
+
+2026-02-01~2026-02-28
+
+
+
+需求一：每日新增用户相关指标
+
+新增用户(新增设备)：指第一次安装并且使用app的用户，后期卸载之后再使用就不算新用户
+
+1：每日新增用户量
+ods层的表名为：ods_user_active
+dwd层的表名为：dwd_user_active
+
+第一步：我们基于清洗之后打开app上报的数据创建一个历史表，这个表里面包含的有xaid字段，针对每天的数据基于xaid进行去重
+第二步：如果我们要计算2026年2月1日的新增用户量，就拿这一天上报的打开app的数据，和前面的历史表进行left join，使用xaid进行关联，关联不上的数据则为新增数据
+
+举个例子：
+(1) 第一步会产生一个历史表，dws_user_active_history，这个表中有一个xaid字段
+dws_user_active_history
+xaid
+a1
+b1
+c1
+d1
+
+(2) 第二步会产生一个临时表，表里面包含的是那一天上报的打开app的数据
+dws_user_active_20260201_tmp
+xaid
+a1
+b1
+x1
+y1
+z1
+
+(3) 对这两个表进行left join
+dws_user_active_20260201_tmp	dws_user_active_history
+xaid							xaid
+a1								a1
+b1								b1
+x1								null
+y1								null
+z1								null
+
+此时：dws_user_active_history.xaid 为null的数据条数即为当日新增用户数
+
+第三步：将计算出来的每日新增用户信息保存到表dws_user_new_item 表中，这个表按照天作为分区，便于后期其它需求使用这个表
+
+第四步：基于dws_user_new_item对数据进行聚合，将计算出来的新增用户数量保存到结果表app_user_new_count
+
+注意：在这里处理完之后，还需要将dws_user_active_20260201_tmp这个临时表中的数据insert到dws_user_active_history这个历史表中
+最后删除这个临时表即可。
+
+2：每日新增用户量的日环比和周同比
+同比：一般是指本期统计数据和往年的同时期的统计数据比较
+环比：一般是指本期统计数据和上一期的统计数据作比较
+
+日环比=(本期的数据-上一期的数据)/上一期的数据
+日环比中的时间单位是天
+
+周同比=(本期的数据-上一期的数据)/上一期的数据
+周同比中的时间单位是周(7天)
+
+实现思路：
+直接基于app_user_new_count进行统计即可，可以统计出来某一天的日环比和周同比
+生成一个新表app_user_new_count_ratio
+里面包含日期、新增用户量、日环比、周同比
+
+
+
+
+总结：我们最终需要在dws层创建三个表
+dws_user_active_20260201_tmp
+dws_user_active_history
+dws_user_new_item
+
+在app层需要创建两个表
+app_user_new_count
+app_user_new_count_ratio
+
+针对dws层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dws_mall_init_table_1.sh
+
+2：添加区分数据脚本(每天执行一次)
+dws_mall_add_partition_1.sh
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_1.sh
+
+2：添加区分数据脚本(每天执行一次)
+app_mall_add_partition_1.sh
+
+
+
+计算2026-02-01~2026-02-09
+
+sh dws_mall_add_partition_1.sh 20260201
+sh dws_mall_add_partition_1.sh 20260202
+sh dws_mall_add_partition_1.sh 20260203
+sh dws_mall_add_partition_1.sh 20260204
+sh dws_mall_add_partition_1.sh 20260205
+sh dws_mall_add_partition_1.sh 20260206
+sh dws_mall_add_partition_1.sh 20260207
+sh dws_mall_add_partition_1.sh 20260208
+sh dws_mall_add_partition_1.sh 20260209
+
+
+sh app_mall_add_partition_1.sh 20260201
+sh app_mall_add_partition_1.sh 20260202
+sh app_mall_add_partition_1.sh 20260203
+sh app_mall_add_partition_1.sh 20260204
+sh app_mall_add_partition_1.sh 20260205
+sh app_mall_add_partition_1.sh 20260206
+sh app_mall_add_partition_1.sh 20260207
+sh app_mall_add_partition_1.sh 20260208
+sh app_mall_add_partition_1.sh 20260209
+
+
+
+需求二：每日活跃用户(主活)相关指标
+
+(1)：每日主活用户量
+ 直接使用dws层的dws_user_active_history这个表，直接求和即可获取到当日的主活用户量，将最终的结果保存到app层的app_user_active_count表中
+(2)：每日主活用户量的日环比和周同比
+这个指标直接基于每日主活用户量的表(app_user_active_count)进行计算即可，把最终的结果保存到app层的app_user_active_count_ratio表中
+
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_2.sh
+
+2：添加区分数据脚本(每天执行一次)
+app_mall_add_partition_2.sh
+
+
+
+
+sh app_mall_add_partition_2.sh 20260201
+sh app_mall_add_partition_2.sh 20260202
+sh app_mall_add_partition_2.sh 20260203
+sh app_mall_add_partition_2.sh 20260204
+sh app_mall_add_partition_2.sh 20260205
+sh app_mall_add_partition_2.sh 20260206
+sh app_mall_add_partition_2.sh 20260207
+sh app_mall_add_partition_2.sh 20260208
+sh app_mall_add_partition_2.sh 20260209
+
+
+如何统计每周主活，每月主活
+周：按照自然周，每周一凌晨计算上一周的主活
+月：按照自然月，每月1号计算上一个月的主活
+
+
+
+
+
+
+需求三：用户7日流失push提醒
+
+实现思路：
+第一步：基于dws_user_active_history表，获取表中最近8天的数据，根据xaid进行分组，这样可以获取xaid以及xaid对应的多个日期(dt)
+第二步：接着需要对xaid对应的dt进行过滤，获取xaid中最大的dt，判断这个dt是否等于(当天日期-7),如果满足条件，则说明这个用户最近7日内没有使用app，就认为他属于7日流失用户
+例如：dws_user_active_history表中有以下几条数据
+xaid	dt
+a1		2026-02-01
+a1		2026-02-05
+b1		2026-02-01
+b1		2026-02-02
+c1		2026-02-03
+
+针对这份数据，我们想要在02-09号统计用户7日流失量
+那也就意味着要统计里面在02-02号使用过app，但是在之后的7天内，一直到02-09号都没有再使用过app的用户
+
+根据xaid进行分组，获取里面最大的日期(最近一次使用app的时间)
+a1		2026-02-01,2026-02-05
+b1		2026-02-01,2026-02-02
+c1		2026-02-03
+
+判断这个时间是否等于02-02,如果满足这个条件，就说明在02-09号之前的7天内没有使用过app。
+
+这里的b1满足条件，所以他就是7日流失用户了
+
+
+第三步：将满足条件的xaid数据保存到dws层的dws_user_lost_item表中
+
+第四步：对dws_user_lost_item表中的数据进行聚合统计，统计用户7日流失数据量，保存到app层的app_user_lost_count表中
+
+
+针对dws层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dws_mall_init_table_3.sh
+
+2：添加区分数据脚本(每天执行一次)
+dws_mall_add_partition_3.sh
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_3.sh
+
+2：添加区分数据脚本(每天执行一次)
+app_mall_add_partition_3.sh
+
+
+
+需求四：每日启动APP次数相关指标
+1：每日人均启动APP次数
+每日人均启动APP次数=当日所有用户启动APP总次数/当日所有人数
+实现思路：
+第一步：基于dws_user_active_history表，统计当日的数据，根据times字段的值求pv和uv即可
+第二步：将计算的结果到app层的app_user_open_app_count表
+
+2：每日APP启动次数分布(1次、2次、3次及以上)
+实现思路：
+对dws_user_active_history里面的times字段进行统计，计算times=1的数据条数、times=2的数据条数以及times>=3的数据条数即可，将最终的结果保存到app层的app_user_open_app_distrib
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_4.sh
+
+2：添加区分数据脚本(每天执行一次)
+app_mall_add_partition_4.sh
+
+
+
+
+需求五：操作系统活跃用户相关指标
+1：操作系统活跃用户分布（安卓、IOS）
+2：安卓系统版本活跃用户分布
+3：IOS系统版本活跃用户分布
+4：设备品牌活跃用户分布
+5：设备型号活跃用户分布
+6：网络类型活跃用户分布
+
+其实主要就是针对dwd_user_active 表中的这些相关维度字段进行分组聚合统计
+
+实现思路：
+第一步：利用咱们前面讲的维度建模的思想，使用星型模型，基于dwd_user_active表，在外层构建对应的维度表
+第二步：在dws层基于以上6中维度创建对应的维度聚合表，按天建分区
+对应的表名为：
+dws_user_platform_distrib
+dws_user_android_osver_distrib
+dws_user_ios_osver_distrib
+dws_user_brand_distrib
+dws_user_model_distrib
+dws_user_net_distrib
+
+第三步：基于dws层的轻度聚合数据进行全局聚合，因为这些指标统计的时候需要统计所有数据，只统计某一天的没有多大意义，将最终聚合的结果保存到app层，这里面的表就是普通的外部表了，里面也不需要日期字段，每天重新生成表里面的数据即可
+
+注意了：咱们前面保存的有每天聚合的数据，如果后期有需求要统计一段时间内的这些维度的指标，那也很简单，直接基于dws层的表进行统计即可，从这也体现出来了数据分层的好处、
+在app层对应的表名为：
+app_user_platform_distrib
+app_user_android_osver_distrib
+app_user_ios_osver_distrib
+app_user_brand_distrib
+app_user_model_distrib
+app_user_net_distrib
+
+
+针对dws层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dws_mall_init_table_5.sh
+
+2：添加区分数据脚本(每天执行一次)
+dws_mall_add_partition_5.sh
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_5.sh
+
+2：添加区分数据脚本(每天执行一次)
+app_mall_add_partition_5.sh
+
+
+
+需求六：APP崩溃相关指标
+
+1：每日操作系统崩溃总计(安卓、IOS)
+2：每日安卓系统-不同APP版本崩溃量
+3：每日IOS系统-不同APP版本崩溃量
+
+
+实现思路：
+针对第一个指标使用dwd_app_close，根据platform进行分组统计即可
+但是注意：第二个指标和第三个指标，也需要根据不同的platform进行统计，但是又多了一个操作系统的维度，如果按照我们刚才的分析，直接基于platform进行分组的话，针对后面两个指标还需要重新计算中间表，没有体现出来数据仓库的好处。
+
+所以我们可以这样做：
+针对dwd_app_close表中的数据，使用platform和vercode进行分组，做轻度聚合，将数据保存到dws层的dws_app_close_platform_vercode表中
+
+基于dws_app_close_platform_vercode表中的数据就可以计算出来这三个指标了
+
+这三个指标的结果分别保存到app层的以下这些表中
+
+每日操作系统崩溃总计(安卓、IOS)：app_app_close_platform_all
+每日安卓系统-不同APP版本崩溃量: app_app_close_android_vercode
+每日IOS系统-不同APP版本崩溃量: app_app_close_ios_vercode
+
+
+
+针对dws层抽取脚本
+1：表初始化脚本(初始化执行一次)
+dws_mall_init_table_6.sh
+
+2：添加区分数据脚本(每天执行一次)
+dws_mall_add_partition_6.sh
+
+
+针对app层抽取脚本
+1：表初始化脚本(初始化执行一次)
+app_mall_init_table_6.sh
+
+2：添加区分数据脚本(每天执行一次)
+app_mall_add_partition_6.sh
+
+
+

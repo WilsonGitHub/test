@@ -1,0 +1,5 @@
+USE mysql;
+CREATE USER 'root'@'%' IDENTIFIED BY '你的密码';
+GRANT ALL ON *.* TO 'root'@'%';
+ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '你的密码';
+FLUSH PRIVILEGES;

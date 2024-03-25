@@ -1,0 +1,710 @@
+=================================ods============================
+create external table if not exists ods_mall.ods_user_active(
+    log    string
+)partitioned by (dt string)
+ row format delimited
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/ods/user_action/';
+
+alter table ods_mall.ods_user_active add  if not exists partition(dt='20260101') location '20260101/1';
+ 
+create external table if not exists ods_mall.ods_click_good(
+    log    string
+)partitioned by (dt string)
+ row format delimited
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/ods/user_action/';
+ 
+alter table ods_mall.ods_click_good add  if not exists partition(dt='20260101') location '20260101/2';
+ 
+create external table if not exists ods_mall.ods_good_item(
+    log    string
+)partitioned by (dt string)
+ row format delimited
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/ods/user_action/';
+
+alter table ods_mall.ods_good_item add  if not exists partition(dt='20260101') location '20260101/3';
+ 
+create external table if not exists ods_mall.ods_good_list(
+    log    string
+)partitioned by (dt string)
+ row format delimited
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/ods/user_action/';
+ 
+alter table ods_mall.ods_good_list add  if not exists partition(dt='20260101') location '20260101/4';
+
+create external table if not exists ods_mall.ods_app_close(
+    log    string
+)partitioned by (dt string)
+ row format delimited
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/ods/user_action/';
+
+alter table ods_mall.ods_app_close add  if not exists partition(dt='20260101') location '20260101/5';
+
+=================================dwd============================
+create external table if not exists dwd_mall.dwd_user_active(
+    user_id    bigint,
+    xaid    string,
+    platform    tinyint,
+    ver    string,
+    vercode    string,
+    net    bigint,
+    brand    string,
+    model    string,
+    display    string,
+    osver    string,
+    acttime    bigint,
+    ad_status    tinyint,
+    loading_time    bigint
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dwd/user_active/';
+ 
+ 
+
+
+insert overwrite table dwd_mall.dwd_user_active partition(dt='20260101')  select
+get_json_object(log,'$.uid') as user_id,
+get_json_object(log,'$.xaid') as xaid,
+get_json_object(log,'$.platform') as platform,
+get_json_object(log,'$.ver') as ver,
+get_json_object(log,'$.vercode') as vercode,
+get_json_object(log,'$.net') as net,
+get_json_object(log,'$.brand') as brand,
+get_json_object(log,'$.model') as model,
+get_json_object(log,'$.display') as display,
+get_json_object(log,'$.osver') as osver,
+get_json_object(log,'$.acttime') as acttime,
+get_json_object(log,'$.ad_status') as ad_status,
+get_json_object(log,'$.loading_time') as loading_time
+from 
+(
+select log from ods_mall.ods_user_active where dt = '20260101' group by log
+) as tmp
+where get_json_object(log,'$.xaid') !='';
+
+
+
+create external table if not exists dwd_mall.dwd_click_good(
+    user_id    bigint,
+    xaid    string,
+    platform    tinyint,
+    ver    string,
+    vercode    string,
+    net    bigint,
+    brand    string,
+    model    string,
+    display    string,
+    osver    string,
+    acttime    bigint,
+    goods_id    bigint,
+    location    tinyint
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dwd/click_good/';
+
+
+insert overwrite table dwd_mall.dwd_click_good partition(dt='20260101')  select 
+get_json_object(log,'$.uid') as user_id,
+get_json_object(log,'$.xaid') as xaid,
+get_json_object(log,'$.platform') as platform,
+get_json_object(log,'$.ver') as ver,
+get_json_object(log,'$.vercode') as vercode,
+get_json_object(log,'$.net') as net,
+get_json_object(log,'$.brand') as brand,
+get_json_object(log,'$.model') as model,
+get_json_object(log,'$.display') as display,
+get_json_object(log,'$.osver') as osver,
+get_json_object(log,'$.acttime') as acttime,
+get_json_object(log,'$.goods_id') as goods_id,
+get_json_object(log,'$.location') as location
+from
+(
+select log from ods_mall.ods_click_good where dt = '20260101' group by log
+) as tmp
+where get_json_object(log,'$.xaid') !='';
+
+
+
+create external table if not exists dwd_mall.dwd_good_item(
+    user_id    bigint,
+    xaid    string,
+    platform    tinyint,
+    ver    string,
+    vercode    string,
+    net    bigint,
+    brand    string,
+    model    string,
+    display    string,
+    osver    string,
+    acttime    bigint,
+    goods_id    bigint,
+    stay_time    bigint,
+	loading_time    bigint
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dwd/good_item/';
+
+
+insert overwrite table dwd_mall.dwd_good_item partition(dt='20260101') select 
+get_json_object(log,'$.uid') as user_id,
+get_json_object(log,'$.xaid') as xaid,
+get_json_object(log,'$.platform') as platform,
+get_json_object(log,'$.ver') as ver,
+get_json_object(log,'$.vercode') as vercode,
+get_json_object(log,'$.net') as net,
+get_json_object(log,'$.brand') as brand,
+get_json_object(log,'$.model') as model,
+get_json_object(log,'$.display') as display,
+get_json_object(log,'$.osver') as osver,
+get_json_object(log,'$.acttime') as acttime,
+get_json_object(log,'$.goods_id') as goods_id,
+get_json_object(log,'$.stay_time') as stay_time,
+get_json_object(log,'$.loading_time') as loading_time
+from
+(
+select log from ods_mall.ods_good_item where dt = '20260101' group by log
+) as tmp
+where get_json_object(log,'$.xaid') !='';
+
+
+create external table if not exists dwd_mall.dwd_good_list(
+    user_id    bigint,
+    xaid    string,
+    platform    tinyint,
+    ver    string,
+    vercode    string,
+    net    bigint,
+    brand    string,
+    model    string,
+    display    string,
+    osver    string,
+    acttime    bigint,
+    loading_time    bigint,
+    loading_type    tinyint,
+	goods_num    tinyint
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dwd/good_list/';
+
+
+
+insert overwrite table dwd_mall.dwd_good_list partition(dt='20260101') select 
+get_json_object(log,'$.uid') as user_id,
+get_json_object(log,'$.xaid') as xaid,
+get_json_object(log,'$.platform') as platform,
+get_json_object(log,'$.ver') as ver,
+get_json_object(log,'$.vercode') as vercode,
+get_json_object(log,'$.net') as net,
+get_json_object(log,'$.brand') as brand,
+get_json_object(log,'$.model') as model,
+get_json_object(log,'$.display') as display,
+get_json_object(log,'$.osver') as osver,
+get_json_object(log,'$.acttime') as acttime,
+get_json_object(log,'$.loading_time') as loading_time,
+get_json_object(log,'$.loading_type') as loading_type,
+get_json_object(log,'$.goods_num') as goods_num
+from
+(
+select log from ods_mall.ods_good_list where dt = '20260101' group by log
+) as tmp
+where get_json_object(log,'$.xaid') !='';
+
+
+create external table if not exists dwd_mall.dwd_app_close(
+    user_id    bigint,
+    xaid    string,
+    platform    tinyint,
+    ver    string,
+    vercode    string,
+    net    bigint,
+    brand    string,
+    model    string,
+    display    string,
+    osver    string,
+    acttime    bigint
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dwd/app_close/';
+
+
+insert overwrite table dwd_mall.dwd_app_close partition(dt='20260101') select 
+get_json_object(log,'$.uid') as user_id,
+get_json_object(log,'$.xaid') as xaid,
+get_json_object(log,'$.platform') as platform,
+get_json_object(log,'$.ver') as ver,
+get_json_object(log,'$.vercode') as vercode,
+get_json_object(log,'$.net') as net,
+get_json_object(log,'$.brand') as brand,
+get_json_object(log,'$.model') as model,
+get_json_object(log,'$.display') as display,
+get_json_object(log,'$.osver') as osver,
+get_json_object(log,'$.acttime') as acttime
+from
+(
+select log from ods_mall.ods_app_close where dt = '20260101' group by log
+) as tmp
+where get_json_object(log,'$.xaid') !='';
+
+=================================dws============================
+create table if not exists dws_mall.dws_user_active_20260201_tmp(
+    xaid    string,
+	times   int
+);
+
+insert overwrite table dws_mall.dws_user_active_20260201_tmp select
+xaid,
+count(*) as times
+from dwd_mall.dwd_user_active
+where dt = '20260201'
+group by xaid;
+
+
+create external table if not exists dws_mall.dws_user_active_history(
+    xaid    string,
+	times   int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_active_history';
+ 
+ 
+create external table if not exists dws_mall.dws_user_new_item(
+    xaid    string
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_new_item';
+ 
+ 
+insert overwrite table dws_mall.dws_user_new_item partition(dt='20260201') select
+duat.xaid
+from dws_mall.dws_user_active_20260201_tmp duat
+left join (select xaid from dws_mall.dws_user_active_history group by xaid) duah
+on duat.xaid = duah.xaid
+where duah.xaid is null;
+
+insert overwrite table dws_mall.dws_user_active_history partition(dt='20260201') select
+xaid,
+times
+from dws_mall.dws_user_active_20260201_tmp;
+
+create external table if not exists dws_mall.dws_user_lost_item(
+    xaid    string
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_lost_item';
+ 
+insert overwrite table dws_mall.dws_user_lost_item partition(dt='20260201') select
+xaid
+from dws_mall.dws_user_active_history
+where dt >= regexp_replace(date_add('2026-02-01',-7),'-','')
+group by xaid
+having max(dt) = regexp_replace(date_add('2026-02-01',-7),'-','');
+
+
+
+create external table if not exists dws_mall.dws_user_platform_distrib(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_platform_distrib';
+
+insert overwrite table dws_mall.dws_user_platform_distrib partition(dt='20260201') select
+case platform
+when 1 then 'android'
+when 2 then 'ios'
+end ty,
+count(*) as num
+from dwd_mall.dwd_user_active
+where dt = '20260201' and platform in (1,2)
+group by platform;
+
+
+
+create external table if not exists dws_mall.dws_user_android_osver_distrib(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_android_osver_distrib';
+
+insert overwrite table dws_mall.dws_user_android_osver_distrib partition(dt='20260201') select
+osver as ty,
+count(*) as num
+from dwd_mall.dwd_user_active
+where dt = '20260201' and platform = 1
+group by osver;
+
+
+create external table if not exists dws_mall.dws_user_ios_osver_distrib(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_ios_osver_distrib';
+
+insert overwrite table dws_mall.dws_user_ios_osver_distrib partition(dt='20260201') select
+osver as ty,
+count(*) as num
+from dwd_mall.dwd_user_active
+where dt = '20260201' and platform = 2
+group by osver;
+
+
+create external table if not exists dws_mall.dws_user_brand_distrib(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_brand_distrib';
+
+insert overwrite table dws_mall.dws_user_brand_distrib partition(dt='20260201') select
+brand as ty,
+count(*) as num
+from dwd_mall.dwd_user_active
+where dt = '20260201'
+group by brand;
+
+
+
+create external table if not exists dws_mall.dws_user_model_distrib(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_model_distrib';
+ 
+insert overwrite table dws_mall.dws_user_model_distrib partition(dt='20260201') select
+model as ty,
+count(*) as num
+from dwd_mall.dwd_user_active
+where dt = '20260201'
+group by model;
+
+
+create external table if not exists dws_mall.dws_user_net_distrib(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_net_distrib';
+ 
+insert overwrite table dws_mall.dws_user_net_distrib partition(dt='20260201') select
+case net
+when 0 then '未知'
+when 1 then 'WIFI'
+when 2 then '2G'
+when 3 then '3G'
+when 4 then '4G'
+when 5 then '5G'
+end ty,
+count(*) as num
+from dwd_mall.dwd_user_active
+where dt = '20260201'
+group by net;
+
+
+create external table if not exists dws_mall.dws_app_close_platform_vercode(
+    platform    string,
+	vercode    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/app_close_platform_vercode';
+
+insert overwrite table dws_mall.dws_app_close_platform_vercode partition(dt='20260201') select
+platform,
+vercode,
+count(*) as num
+from dwd_mall.dwd_app_close
+where dt = '20260201' and platform in (1,2)
+group by platform,vercode;
+ 
+=================================app============================
+
+create external table if not exists app_mall.app_user_new_count(
+    num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_new_count';
+ 
+
+insert overwrite table app_mall.app_user_new_count partition(dt='20260201') select
+count(*) as num
+from dws_mall.dws_user_new_item
+where dt = '20260201';
+
+
+create external table if not exists app_mall.app_user_new_count_ratio(
+    num    int,
+	day_ratio    double,
+	week_ratio    double
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_new_count_ratio';
+ 
+# 日环比，周同比
+insert overwrite table app_mall.app_user_new_count_ratio partition(dt='20260201') select
+num,
+(num-num_1)/num_1 as day_ratio,
+(num-num_7)/num_7 as week_ratio
+from(
+    select
+    dt,
+    num,
+    lead(num,1) over(order by dt desc) as num_1,
+    lead(num,7) over(order by dt desc) as num_7
+    from app_mall.app_user_new_count
+	where dt >=regexp_replace(date_add('2026-02-01',-7),'-','')
+) as t
+where dt = '20260201';
+
+
+
+create external table if not exists app_mall.app_user_active_count(
+    num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_active_count';
+ 
+insert overwrite table app_mall.app_user_active_count partition(dt='20260201') select
+count(*) as num
+from dws_mall.dws_user_active_history
+where dt = '20260201';
+ 
+ 
+
+create external table if not exists app_mall.app_user_active_count_ratio(
+    num    int,
+	day_ratio    double,
+	week_ratio    double
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_active_count_ratio';
+
+
+insert overwrite table app_mall.app_user_active_count_ratio partition(dt='20260201') select
+num,
+(num-num_1)/num_1 as day_ratio,
+(num-num_7)/num_7 as week_ratio
+from(
+    select
+    dt,
+    num,
+    lead(num,1) over(order by dt desc) as num_1,
+    lead(num,7) over(order by dt desc) as num_7
+    from app_mall.app_user_active_count
+	where dt >=regexp_replace(date_add('2026-02-01',-7),'-','')
+) as t
+where dt = '20260201';
+
+
+create external table if not exists app_mall.app_user_lost_count(
+    num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_lost_count';
+ 
+insert overwrite table app_mall.app_user_lost_count partition(dt='20260201') select
+count(*) as num
+from dws_mall.dws_user_lost_item
+where dt = '20260201';
+ 
+ 
+
+create external table if not exists app_mall.app_user_open_app_count(
+    pv    int,
+	uv    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_open_app_count';
+
+insert overwrite table app_mall.app_user_open_app_count partition(dt='20260201') select
+sum(times) as pv,
+count(*) as uv
+from dws_mall.dws_user_active_history
+where dt = '20260201';
+
+
+
+create external table if not exists app_mall.app_user_open_app_distrib(
+    ts_1    int,
+	ts_2    int,
+	ts_3_m    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_open_app_distrib';
+ 
+insert overwrite table app_mall.app_user_open_app_distrib partition(dt='20260201') select
+sum( case when times = 1 then 1 else 0 end) ts_1,
+sum( case when times = 2 then 1 else 0 end) ts_2,
+sum( case when times >= 3 then 1 else 0 end) ts_3_m
+from dws_mall.dws_user_active_history
+where dt = '20260201';
+
+
+
+
+
+create external table if not exists app_mall.app_user_platform_distrib(
+    ty    string,
+	num    int
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_platform_distrib';
+ 
+insert overwrite table app_mall.app_user_platform_distrib select
+ty,
+sum(num) as num
+from dws_mall.dws_user_platform_distrib
+group by ty;
+
+
+create external table if not exists app_mall.app_user_android_osver_distrib(
+    ty    string,
+	num    int
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_android_osver_distrib';
+
+insert overwrite table app_mall.app_user_android_osver_distrib select
+ty,
+sum(num) as num
+from dws_mall.dws_user_android_osver_distrib
+group by ty;
+
+
+create external table if not exists app_mall.app_user_ios_osver_distrib(
+    ty    string,
+	num    int
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_ios_osver_distrib';
+
+insert overwrite table app_mall.app_user_ios_osver_distrib select
+ty,
+sum(num) as num
+from dws_mall.dws_user_ios_osver_distrib
+group by ty;
+
+
+
+
+create external table if not exists app_mall.app_user_brand_distrib(
+    ty    string,
+	num    int
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_brand_distrib';
+
+insert overwrite table app_mall.app_user_brand_distrib select
+ty,
+sum(num) as num
+from dws_mall.dws_user_brand_distrib
+group by ty;
+
+
+
+create external table if not exists app_mall.app_user_model_distrib(
+    ty    string,
+	num    int
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_model_distrib';
+
+insert overwrite table app_mall.app_user_model_distrib select
+ty,
+sum(num) as num
+from dws_mall.dws_user_model_distrib
+group by ty;
+
+
+create external table if not exists app_mall.app_user_net_distrib(
+    ty    string,
+	num    int
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_net_distrib';
+ 
+insert overwrite table app_mall.app_user_net_distrib select
+ty,
+sum(num) as num
+from dws_mall.dws_user_net_distrib
+group by ty;
+
+
+create external table if not exists app_mall.app_app_close_platform_all(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/app_close_platform_all';
+ 
+insert overwrite table app_mall.app_app_close_platform_all partition(dt='20260201') select
+case platform
+when 1 then 'android'
+when 2 then 'ios'
+end ty,
+sum(num) as num
+from dws_mall.dws_app_close_platform_vercode
+where dt = '20260201'
+group by platform;
+
+
+
+
+create external table if not exists app_mall.app_app_close_android_vercode(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/app_close_android_vercode';
+
+insert overwrite table app_mall.app_app_close_android_vercode partition(dt='20260201') select
+vercode as ty,
+sum(num) as num
+from dws_mall.dws_app_close_platform_vercode
+where dt = '20260201' and platform = 1
+group by vercode;
+
+create external table if not exists app_mall.app_app_close_ios_vercode(
+    ty    string,
+	num    int
+)partitioned by(dt string)
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/app_close_ios_vercode';
+
+insert overwrite table app_mall.app_app_close_ios_vercode partition(dt='20260201') select
+vercode as ty,
+sum(num) as num
+from dws_mall.dws_app_close_platform_vercode
+where dt = '20260201' and platform = 2
+group by vercode;

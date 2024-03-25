@@ -1,0 +1,307 @@
+==================================dws==============================
+
+create external table if not exists dws_mall.dws_user_info_all(
+   user_id              bigint,
+   user_name            string,
+   user_gender          tinyint,
+   user_birthday        string,
+   e_mail               string,
+   mobile               string,
+   register_time        string,
+   is_blacklist         tinyint,
+   is_pregnant_woman    tinyint,
+   is_have_children     tinyint,
+   is_have_car          tinyint,
+   phone_brand          string,
+   phone_cnt            int,
+   change_phone_cnt     int,
+   weight               int,
+   height               int
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_info_all/';
+
+
+insert overwrite table dws_mall.dws_user_info_all partition(dt='20260201')  select 
+   du.user_id,
+   du.user_name,
+   du.user_gender,
+   du.user_birthday,
+   du.e_mail,
+   du.mobile,
+   du.register_time,
+   du.is_blacklist,
+   due.is_pregnant_woman,
+   due.is_have_children,
+   due.is_have_car,
+   due.phone_brand,
+   due.phone_cnt,
+   due.change_phone_cnt,
+   due.weight,
+   due.height
+from dwd_mall.dwd_user as du
+left join dwd_mall.dwd_user_extend as due
+on du.user_id = due.user_id
+where du.dt = '20260201' and due.dt = '20260201';
+
+
+
+create external table if not exists dws_mall.dws_order_goods_all_info(
+   order_id             bigint,
+   goods_id             bigint,
+   goods_amount         int,
+   order_curr_price           double,
+   order_create_time          string,
+   goods_no             string,
+   goods_name           string,
+   goods_curr_price           double,
+   goods_desc           string,
+   goods_create_time          string,
+   first_category_id    int,
+   first_category_name  string,
+   second_category_id   int,
+   second_catery_name   string,
+   third_category_id    int,
+   third_category_name  string
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/order_goods_all_info/';
+
+insert overwrite table dws_mall.dws_order_goods_all_info partition(dt='20260201')  select 
+   doi.order_id,
+   doi.goods_id,
+   doi.goods_amount,
+   doi.curr_price as order_curr_price,
+   doi.create_time as order_create_time,
+   dgi.goods_no,
+   dgi.goods_name,
+   dgi.curr_price as goods_curr_price,
+   dgi.goods_desc,
+   dgi.create_time as goods_create_time,
+   dcc.first_category_id,
+   dcc.first_category_name,
+   dcc.second_category_id,
+   dcc.second_catery_name,
+   dcc.third_category_id,
+   dcc.third_category_name
+from dwd_mall.dwd_order_item as doi
+left join dwd_mall.dwd_goods_info as dgi
+on doi.goods_id = dgi.goods_id
+left join dwd_mall.dwd_category_code as dcc
+on dgi.third_category_id = dcc.third_category_id
+where doi.dt = '20260201' and dgi.dt = '20260201' and dcc.dt = '20260201';
+
+
+==================================app==============================
+
+create external table if not exists app_mall.app_gmv(
+    gmv   decimal(10,2) 
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/gmv/';
+
+
+
+insert overwrite table app_mall.app_gmv partition(dt='20260201')  select 
+sum(order_money) as gmv
+from dwd_mall.dwd_user_order
+where dt = '20260201';
+
+
+create external table if not exists app_mall.app_goods_sales_item(
+    goods_name    string,
+	first_category_name     string,
+	order_total    bigint,
+	price_total    decimal(10,2)
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/goods_sales_item/';
+ 
+insert overwrite table app_mall.app_goods_sales_item partition(dt='20260201')  select 
+goods_name,
+first_category_name,
+count(order_id) as order_total,
+sum(goods_amount * order_curr_price) as price_total
+from dws_mall.dws_order_goods_all_info
+where dt = '20260201'
+group by goods_name,first_category_name;
+
+
+
+
+create external table if not exists app_mall.app_category_top10(
+	first_category_name     string,
+	order_total    bigint
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/category_top10/';
+ 
+insert overwrite table app_mall.app_category_top10 partition(dt='20260201')  select 
+first_category_name,
+sum(order_total) as order_total
+from app_mall.app_goods_sales_item 
+where dt ='20260201'
+group by first_category_name
+order by order_total desc
+limit 10;
+
+
+
+create external table if not exists app_mall.app_user_conver_funnel(
+    active_num    int,
+    item_num     int,
+    order_num    int,
+    pay_num    int,
+    active_to_item_ratio    decimal(10,2),
+    item_to_order_ratio    decimal(10,2),
+    order_to_pay_ratio    decimal(10,2)
+)partitioned by(dt string) 
+ row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/app/user_conver_funnel/';
+
+insert overwrite table app_mall.app_user_conver_funnel partition(dt='20260201')  select 
+duah.active_num,
+dgi.item_num,
+duo.order_num,
+duo.pay_num,
+dgi.item_num/duah.active_num as active_to_item_ratio,
+duo.order_num/dgi.item_num as item_to_order_ratio,
+duo.pay_num/duo.order_num as order_to_pay_ratio
+from
+(
+    select 
+	count(*) as active_num
+	from dws_mall.dws_user_active_history
+	where dt = '20260201'
+) as duah
+join
+(
+    select 
+	count(distinct goods_id) as item_num
+	from dwd_mall.dwd_good_item
+    where dt = '20260201'
+)as dgi
+on 1=1
+join
+(
+    select
+	count(*) as order_num,
+	sum(case when order_status != 0 then 1 else 0 end) as pay_num
+	from dwd_mall.dwd_user_order
+	where dt = '20260201'
+) as duo
+on 1=1;
+
+
+============================拉链表的相关SQL=============================
+insert overwrite table dwd_mall.dwd_user_order partition(dt='20260301')  select 
+   order_id,
+   order_date,
+   user_id,
+   order_money,
+   order_type,
+   order_status,
+   pay_id,
+   update_time
+from ods_mall.ods_user_order
+where dt = '20260301' and order_id is not null;
+
+insert overwrite table dwd_mall.dwd_user_order partition(dt='20260302')  select 
+   order_id,
+   order_date,
+   user_id,
+   order_money,
+   order_type,
+   order_status,
+   pay_id,
+   update_time
+from ods_mall.ods_user_order
+where dt = '20260302' and order_id is not null;
+
+
+insert overwrite table dwd_mall.dwd_user_order partition(dt='20260303')  select 
+   order_id,
+   order_date,
+   user_id,
+   order_money,
+   order_type,
+   order_status,
+   pay_id,
+   update_time
+from ods_mall.ods_user_order
+where dt = '20260303' and order_id is not null;
+
+create external table if not exists dws_mall.dws_user_order_zip(
+   order_id    bigint,
+   order_date    string,
+   user_id    bigint,
+   order_money    double,
+   order_type    int,
+   order_status    int,
+   pay_id    bigint,
+   update_time    string,
+   start_time    string,
+   end_time    string
+)row format delimited  
+ fields terminated by '\t'
+ location 'hdfs://bigdata01:9000/data/dws/user_order_zip/';
+
+
+
+
+insert overwrite table dws_mall.dws_user_order_zip
+select *
+from 
+(
+    select
+       duoz.order_id,
+       duoz.order_date,
+       duoz.user_id,
+       duoz.order_money,
+       duoz.order_type,
+       duoz.order_status,
+       duoz.pay_id,
+       duoz.update_time,
+       duoz.start_time,
+       case
+           when duoz.end_time = '9999-12-31' and duo.order_id is not null then date_add('2026-03-01',-1)
+           else duoz.end_time
+       end as end_time
+    from dws_mall.dws_user_order_zip as duoz
+    left join
+    (
+        select order_id from dwd_mall.dwd_user_order
+        where dt = '20260301'
+    ) as duo
+    on duoz.order_id = duo.order_id
+union all
+   select
+       duo.order_id,
+       duo.order_date,
+       duo.user_id,
+       duo.order_money,
+       duo.order_type,
+       duo.order_status,
+       duo.pay_id,
+       duo.update_time,
+       '2026-03-01' as start_time,
+       '9999-12-31' as end_time
+   from dwd_mall.dwd_user_order as duo
+   where duo.dt = '20260301'
+) as t;
+
+
+
+
+
+
+
+
+
+
